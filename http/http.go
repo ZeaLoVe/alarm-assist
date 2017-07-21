@@ -17,6 +17,8 @@ func configRoutes() {
 
 	//user api
 	beego.Router("/v1/api/uic/users", &controllers.UserApiController{}, "get:GetUsers")
+	beego.Router("/v1/api/uic/users/search", &controllers.UserApiController{}, "get:SearchUser")
+	beego.Router("/v1/api/uic/users/check", &controllers.UserApiController{}, "get:CheckUsers")
 	beego.Router("/v1/api/uic/users/*", &controllers.UserApiController{}, "get:GetUser")
 	beego.Router("/v1/api/uic/users/*", &controllers.UserApiController{}, "post:UpdateUser")
 	beego.Router("/v1/api/uic/users/*", &controllers.UserApiController{}, "delete:DeleteUser")
@@ -31,10 +33,10 @@ func configRoutes() {
 
 	//subscrible api
 	beego.Router("/v1/api/portal/subscribles", &controllers.SubscribleApiController{}, "post:AddSubscrible")
-	beego.Router("/v1/api/portal/subscribles/users", &controllers.SubscribleApiController{}, "post:UsersSubscrible")
-	beego.Router("/v1/api/portal/subscribles/pause", &controllers.SubscribleApiController{}, "post:PauseSubscrible")
-	beego.Router("/v1/api/portal/subscribles/resume", &controllers.SubscribleApiController{}, "post:ResumeSubscrible")
-	beego.Router("/v1/api/portal/subscribles/status", &controllers.SubscribleApiController{}, "post:StatusSubscrible")
+	beego.Router("/v1/api/portal/subscribles/*", &controllers.SubscribleApiController{}, "delete:DeleteSubscrible")      // * is subscrible id
+	beego.Router("/v1/api/portal/subscribles/*", &controllers.SubscribleApiController{}, "post:UpdateSubscrible")        // * is subscrible id
+	beego.Router("/v1/api/portal/subscribles/follow/*", &controllers.SubscribleApiController{}, "post:FollowSubscrible") // * is subscrible id
+	beego.Router("/v1/api/portal/subscribles", &controllers.SubscribleApiController{}, "get:GetSubscribles")
 
 }
 

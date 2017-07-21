@@ -1,21 +1,12 @@
-package db
+package cache
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/astaxie/beego"
 )
-
-type User struct {
-	Id     int    `json:"id"`
-	Cnname string `json:"cnname"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
-	Phone  string `json:"phone"`
-	IM     string `json:"im"`
-	QQ     string `json:"qq"`
-}
 
 //M 是 id -> *User
 //M2是 im -> id
@@ -26,6 +17,17 @@ type UsersCache struct {
 }
 
 var Users = &UsersCache{M: make(map[int]*User), M2: make(map[string]int)}
+
+func (this *UsersCache) GetUserList(id_list []int) (ret []*User) {
+	this.RLock()
+	defer this.RUnlock()
+	for _, id := range id_list {
+		if user, exist := this.M[id]; exist {
+			ret = append(ret, user)
+		}
+	}
+	return ret
+}
 
 func (this *UsersCache) Get(id int) *User {
 	this.RLock()
@@ -38,27 +40,52 @@ func (this *UsersCache) Get(id int) *User {
 	return val
 }
 
-func (this *UsersCache) Set(id int, user *User) {
+func (this *UsersCache) Set(user *User) {
 	this.Lock()
 	defer this.Unlock()
-	this.M[id] = user
+	this.M[user.Id] = user
+	this.M2[user.IM] = user.Id
 }
 
-func (this *UsersCache) GetId(im string) int {
+func (this *UsersCache) GetByIm(im string) int {
 	this.RLock()
 	defer this.RUnlock()
 	id, exists := this.M2[im]
 	if !exists {
 		return 0
 	}
-
 	return id
 }
 
-func (this *UsersCache) SetId(im string, id int) {
-	this.Lock()
-	defer this.Unlock()
-	this.M2[im] = id
+func (this *UsersCache) CheckUsers(im_list []string) (ok_list []string, fail_list []string) {
+	for _, im := range im_list {
+		if _, exist := Users.M2[im]; exist {
+			ok_list = append(ok_list, im)
+		} else {
+			fail_list = append(fail_list, im)
+		}
+	}
+	return ok_list, fail_list
+}
+
+func (this *UsersCache) QueryByIM(content string) []*User {
+	this.RLock()
+	defer this.RUnlock()
+	var ret []*User
+	for _, user := range this.M {
+		if strings.Contains(user.IM, content) {
+			ret = append(ret, user)
+		}
+	}
+	return ret
+}
+
+func (this *User) updateCache() {
+	//更新cache
+	err := this.Read()
+	if err != nil {
+		Users.Set(this)
+	}
 }
 
 func (this *User) Insert() error {
@@ -75,53 +102,53 @@ func (this *User) Insert() error {
 	if err != nil {
 		return err
 	}
+	go this.updateCache()
 	id64, _ := res.LastInsertId()
 	this.Id = int(id64)
 	return nil
 }
 
-func (this *User) perepareUpdate(curUser *User) {
-	if this.Name == "" && curUser.Name != "" {
-		this.Name = curUser.Name
+func (this *User) getUpdateSets() string {
+	var names, values []string
+	if this.Name != "" {
+		names = append(names, "name")
+		values = append(values, this.Name)
 	}
-	if this.Cnname == "" && curUser.Cnname != "" {
-		this.Cnname = curUser.Cnname
+	if this.Cnname != "" {
+		names = append(names, "cnname")
+		values = append(values, this.Cnname)
 	}
-	if this.Email == "" && curUser.Email != "" {
-		this.Email = curUser.Email
+	if this.Email != "" {
+		names = append(names, "email")
+		values = append(values, this.Email)
 	}
-	if this.IM == "" && curUser.IM != "" {
-		this.IM = curUser.IM
+	if this.IM != "" {
+		names = append(names, "phone")
+		values = append(values, this.Phone)
 	}
-	if this.Phone == "" && curUser.Phone != "" {
-		this.Phone = curUser.Phone
+	if this.Phone != "" {
+		names = append(names, "im")
+		values = append(values, this.IM)
 	}
-	if this.QQ == "" && curUser.QQ != "" {
-		this.QQ = curUser.QQ
+	if this.QQ != "" {
+		names = append(names, "qq")
+		values = append(values, this.QQ)
 	}
+	return genUpdateSQL(names, values)
 }
 
 func (this *User) Update() error {
-	tmpUser := *this
-	err := tmpUser.Read()
-	if err != nil {
-		return fmt.Errorf("read user before update error")
-	}
-	this.perepareUpdate(&tmpUser)
-	sql := fmt.Sprintf("update user Set name='%v',cnname='%v',email='%v',phone='%v',im='%v',qq='%v' where id=%v",
-		this.Name,
-		this.Cnname,
-		this.Email,
-		this.Phone,
-		this.IM,
-		this.QQ,
+
+	sql := fmt.Sprintf("update user Set %v where id=%v",
+		this.getUpdateSets(),
 		this.Id,
 	)
 	beego.Debug(sql)
-	_, err = UicDB.Exec(sql)
+	_, err := UicDB.Exec(sql)
 	if err != nil {
 		return err
 	}
+	go this.updateCache()
 	return nil
 
 }
@@ -139,7 +166,7 @@ func (this *User) Delete() error {
 }
 
 func (this *User) Read() error {
-	sql := fmt.Sprintf("select id, name, cnname, email, phone, im from user where id=%v",
+	sql := fmt.Sprintf("select id, name, cnname, email, phone, im, wechat from user where id=%v",
 		this.Id,
 	)
 	rows, err := UicDB.Query(sql)
@@ -157,6 +184,7 @@ func (this *User) Read() error {
 			&this.Email,
 			&this.Phone,
 			&this.IM,
+			&this.Wechat,
 		)
 		if err != nil {
 			return err
@@ -171,7 +199,7 @@ func (this *User) Read() error {
 
 func buildUsersCache() {
 
-	sql := "select id, name, cnname, email, phone, im from user"
+	sql := "select id, name, cnname, email, phone, im, wechat from user"
 	rows, err := UicDB.Query(sql)
 	if err != nil {
 		beego.Debug("ERROR:", err)
@@ -189,6 +217,7 @@ func buildUsersCache() {
 			&user.Email,
 			&user.Phone,
 			&user.IM,
+			&user.Wechat,
 		)
 
 		if err != nil {

@@ -1,24 +1,68 @@
-package db
+package cache
 
 import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 
 	"github.com/astaxie/beego"
 )
 
-type Expression struct {
-	Id         int    `json:"id"`
-	Expression string `json:"expression"`
-	Func       string `json:"func"`
-	Operator   string `json:"op"`
-	RightValue string `json:"right_value"`
-	MaxStep    int    `json:"max_step"`
+//从func获得 count(次数)、funcStr（all/avg...）
+func GetCountAndFuncStr(str string) (int, string, error) {
+	idx := strings.Index(str, "#")
+	limit, err := strconv.ParseInt(str[idx+1:len(str)-1], 10, 64)
+	if err != nil {
+		return 0, "", err
+	}
+	return int(limit), str[:idx-1], nil
+}
+
+func GetEndpointCounter(each string) (endpoint string, counter string) {
+	idx := strings.Index(each, "each(")
+
+	//values[0] = metric=XXX
+	//values[1] = endpoint=XX
+	//values[2...] = tags
+	values := strings.Split(each[idx+5:len(each)-1], " ")
+
+	for i, _ := range values {
+		if i == 0 {
+			counter = strings.Split(values[0], "=")[1] //metric先赋值
+		} else if i == 1 {
+			endpoint = strings.Split(values[1], "=")[1]
+		} else if i == 2 {
+			counter = fmt.Sprintf("%v/%v", counter, values[2])
+		} else {
+			counter = fmt.Sprintf("%v,%v", counter, values[i])
+		}
+	}
+	return endpoint, counter
+}
+
+func GetExpStringFromCounter(endpoint string, counter string) (string, error) {
+	var metric string
+	var tagsStr []string
+	idx := strings.Index(counter, "/")
+	if idx == -1 {
+		metric = counter
+	} else {
+		metric = counter[0 : idx-1]
+		tagsStr = strings.Split(counter[idx+1:], ",")
+	}
+
+	expStr := GetExpString(metric, endpoint, tagsStr)
+	if expStr == "" {
+		return expStr, fmt.Errorf("empty expression")
+	}
+	return expStr, nil
 }
 
 //metric 必须，且expression需要两个以上的选项
-func GetExpString(metric string, endpoint string, tags map[string]string) string {
+//tags 为 key=val 格式的数组
+func GetExpString(metric string, endpoint string, tags []string) string {
 	var exp string
 	valid_num := 0
 	if metric != "" {
@@ -30,9 +74,9 @@ func GetExpString(metric string, endpoint string, tags map[string]string) string
 		exp = fmt.Sprintf("%v endpoint=%v", exp, endpoint)
 	}
 	if len(tags) != 0 {
-		for tag_name, tag_value := range tags {
+		for _, tag := range tags {
 			valid_num = valid_num + 1
-			exp = fmt.Sprintf("%v %v=%v", exp, tag_name, tag_value)
+			exp = fmt.Sprintf("%v %v", exp, tag)
 		}
 	}
 	if valid_num < 2 {
@@ -70,15 +114,17 @@ func (this *Expression) Insert(priority int) error {
 }
 
 //expression fingerprint->  expression_id
-func QueryExpressions() (ret map[string]int, err error) {
+//add: expression id-> *Expression
+func QueryExpressions() (ret map[string]int, ret2 map[int]*Expression, err error) {
 	sql := "select id, expression, func, op, right_value, max_step from expression where priority > 6"
 	rows, err := PortalDB.Query(sql)
 	if err != nil {
 		beego.Debug("ERROR:", err)
-		return ret, err
+		return ret, ret2, err
 	}
 
 	ret = make(map[string]int)
+	ret2 = make(map[int]*Expression)
 	defer rows.Close()
 	for rows.Next() {
 		e := Expression{}
@@ -91,13 +137,16 @@ func QueryExpressions() (ret map[string]int, err error) {
 			&e.MaxStep,
 		)
 
+		e.FuncCount, e.FuncStr, _ = GetCountAndFuncStr(e.Func)
+		e.Endpoint, e.Counter = GetEndpointCounter(e.Expression)
+
 		if err != nil {
 			beego.Debug("WARN:", err)
 			continue
 		}
-
 		ret[e.FingerPrint()] = e.Id
+		ret2[e.Id] = &e
 	}
 
-	return ret, nil
+	return ret, ret2, nil
 }

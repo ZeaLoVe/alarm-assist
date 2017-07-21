@@ -14,10 +14,11 @@ type HttpConfig struct {
 }
 
 type QueueConfig struct {
-	Sms   string `json:"sms"`
-	Mail  string `json:"mail"`
-	IMSms string `json:"im"`
-	Phone string `json:"phone"`
+	Sms    string `json:"sms"`
+	Mail   string `json:"mail"`
+	IMSms  string `json:"im"`
+	Phone  string `json:"phone"`
+	Wechat string `json:"wechat"`
 }
 
 type RedisConfig struct {
@@ -25,14 +26,6 @@ type RedisConfig struct {
 	MaxIdle     int      `json:"maxIdle"`
 	MaxConsumer int      `json:"maxConsumer"`
 	QueryQueues []string `json:"queryQueues"`
-}
-
-//group用来记录发送历史，为99U群号，所有发送历史都会汇总发到该群组（通过逗号分割）
-type IMConfig struct {
-	Uri        string `json:"uri"`
-	Password   string `json:"password"`
-	Group      string `json:"group,omitempty"`
-	PhoneGroup string `json:"phonegroup,omitempty"`
 }
 
 type GlobalConfig struct {

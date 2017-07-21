@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/ZeaLoVe/alarm-assist/cache"
 	"github.com/ZeaLoVe/alarm-assist/cron"
-	"github.com/ZeaLoVe/alarm-assist/db"
 	"github.com/ZeaLoVe/alarm-assist/g"
 	"github.com/ZeaLoVe/alarm-assist/http"
 )
@@ -32,7 +32,7 @@ func main() {
 	g.ParseConfig(*cfg)
 	g.InitRedisConnPool()
 
-	db.Init()
+	cache.Init()
 	go http.Start()
 	go cron.ComsumeEvent()
 

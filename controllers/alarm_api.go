@@ -37,6 +37,7 @@ func (c *AlarmApiController) Alarms() {
 			c.RenderError("no recievers")
 			return
 		}
+		//TODO 判断recievers的内容是否符合要求，去重
 		switch body.Type {
 		case "im":
 			sender.WriteIMSms(body.Recievers, body.Content)
@@ -51,6 +52,9 @@ func (c *AlarmApiController) Alarms() {
 		case "phone":
 			sender.WritePhone(body.Recievers, body.Content)
 			metrics.ReportRequestCount(metrics.Alarm_api_phone)
+		case "wechat":
+			sender.WriteWechat(body.Recievers, body.Content)
+			metrics.ReportRequestCount(metrics.Alarm_api_wechat)
 		default:
 			c.RenderError("alarm type no support")
 			return

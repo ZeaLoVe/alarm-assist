@@ -24,7 +24,7 @@ func (this *MainController) Health() {
 
 func (c *MainController) Home() {
 	c.Ctx.ResponseWriter.Write([]byte("welcome to alarm-assist\n"))
-	c.Ctx.ResponseWriter.Write([]byte("more details "))
+	c.Ctx.ResponseWriter.Write([]byte("more details :http://wiki.sdp.nd/index.php?title=Alarm-assist%E6%8E%A5%E5%8F%A3%E6%96%87%E6%A1%A3"))
 }
 
 type OKDto struct {

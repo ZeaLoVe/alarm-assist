@@ -52,6 +52,20 @@ func WriteSmsModel(sms *model.Sms) {
 	LPUSH(g.Config().Queue.Sms, string(bs))
 }
 
+func WriteWechatModel(sms *model.WechatSms) {
+	if sms == nil {
+		return
+	}
+
+	bs, err := json.Marshal(sms)
+	if err != nil {
+		beego.Warn(err)
+		return
+	}
+
+	LPUSH(g.Config().Queue.Wechat, string(bs))
+}
+
 func WriteMailModel(mail *model.Mail) {
 	if mail == nil {
 		return
@@ -114,4 +128,13 @@ func WritePhone(tos []string, content string) {
 
 	phone := &model.Phone{Tos: strings.Join(tos, ","), Content: content}
 	WritePhoneModel(phone)
+}
+
+func WriteWechat(tos []string, content string) {
+	if len(tos) == 0 {
+		return
+	}
+
+	wechatsms := &model.WechatSms{Tos: strings.Join(tos, ","), Content: content}
+	WriteWechatModel(wechatsms)
 }

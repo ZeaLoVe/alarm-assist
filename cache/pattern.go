@@ -1,4 +1,4 @@
-package db
+package cache
 
 import (
 	"fmt"
@@ -6,11 +6,12 @@ import (
 	"github.com/astaxie/beego"
 )
 
-type Pattern struct {
-	Id      int    `json:"id"`
-	Channal string `json:"channal"`
-	Name    string `json:"name"`
-	Note    string `json:"note"`
+func (this *Pattern) updateCache() {
+	//更新cache
+	err := this.Read()
+	if err != nil {
+		Patterns.Set(this)
+	}
 }
 
 func (this *Pattern) Insert() error {
@@ -24,42 +25,41 @@ func (this *Pattern) Insert() error {
 	if err != nil {
 		return err
 	}
+	go this.updateCache()
 	id64, _ := res.LastInsertId()
 	this.Id = int(id64)
 	return nil
 }
 
-func (this *Pattern) perepareUpdate(curPattern *Pattern) {
-	if this.Name == "" && curPattern.Name != "" {
-		this.Name = curPattern.Name
+func (this *Pattern) getUpdateSets() string {
+	var names, values []string
+	if this.Name != "" {
+		names = append(names, "name")
+		values = append(values, this.Name)
 	}
-	if this.Channal == "" && curPattern.Channal != "" {
-		this.Channal = curPattern.Channal
+	if this.Channal != "" {
+		names = append(names, "channal")
+		values = append(values, this.Channal)
 	}
-	if this.Note == "" && curPattern.Note != "" {
-		this.Note = curPattern.Note
+	if this.Note != "" {
+		names = append(names, "note")
+		values = append(values, this.Note)
 	}
+	return genUpdateSQL(names, values)
 }
 
 func (this *Pattern) Update() error {
-	tmpPattern := *this
-	err := tmpPattern.Read()
-	if err != nil {
-		return fmt.Errorf("read Pattern before update error")
-	}
-	this.perepareUpdate(&tmpPattern)
-
-	sql := fmt.Sprintf("update pattern Set channal='%v',name='%v',note='%v' where id=%v",
-		this.Channal,
-		this.Name,
-		this.Note,
+	sql := fmt.Sprintf("update pattern Set %v where id=%v",
+		this.getUpdateSets(),
 		this.Id,
 	)
+
 	beego.Debug(sql)
-	_, err = PortalDB.Exec(sql)
+	_, err := PortalDB.Exec(sql)
 	if err != nil {
 		return err
 	}
+	go this.updateCache()
 	return nil
 
 }

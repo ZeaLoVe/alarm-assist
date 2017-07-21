@@ -4,41 +4,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"sync"
-	"time"
 
-	"github.com/ZeaLoVe/alarm-assist/db"
+	"github.com/ZeaLoVe/alarm-assist/cache"
 )
 
 type PatternsApiResponse struct {
-	TotalElements int          `json:"totalElements"`
-	TotalPages    int          `json:"totalPages"`
-	Itenms        []db.Pattern `json:"items"`
+	TotalElements int             `json:"totalElements"`
+	TotalPages    int             `json:"totalPages"`
+	Itenms        []cache.Pattern `json:"items"`
 }
 
 type PatternApiController struct {
 	ApiController
 }
 
-var pattern_lock sync.Mutex
-var patternArray []db.Pattern
-var patternLastUpdate int64
-
-func GetPatternsArray() []db.Pattern {
-	pattern_lock.Lock()
-	defer pattern_lock.Unlock()
-	if time.Now().Unix() < patternLastUpdate+REFLESHINTERVAL {
-		return patternArray
-	} else {
-		var tmpArray []db.Pattern
-		tmpCache := db.Patterns.M
-		for _, pattern := range tmpCache {
-			tmpArray = append(tmpArray, *pattern)
-		}
-		patternLastUpdate = time.Now().Unix()
-		patternArray = tmpArray
+func GetPatternsArray() []cache.Pattern {
+	var tmpArray []cache.Pattern
+	tmpCache := cache.Patterns.M
+	for _, pattern := range tmpCache {
+		tmpArray = append(tmpArray, *pattern)
 	}
-	return patternArray
+	return tmpArray
+
 }
 
 func (c *PatternApiController) GetPatterns() {
@@ -92,8 +79,8 @@ func (c *PatternApiController) GetPattern() {
 		c.RenderError("cant parse id to int")
 		return
 	}
-	var resp db.Pattern
-	pattern := db.Patterns.Get(id)
+	var resp cache.Pattern
+	pattern := cache.Patterns.Get(id)
 
 	if pattern == nil {
 		c.RenderError("No such pattern")
@@ -105,12 +92,15 @@ func (c *PatternApiController) GetPattern() {
 }
 
 func (c *PatternApiController) AddPattern() {
-	var body db.Pattern
+	var body cache.Pattern
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &body)
 	if err != nil {
 		c.RenderError(err.Error())
 	} else {
-		//TODO 添加channal验证
+		if body.Channal == "" {
+			c.RenderError("empty channals")
+			return
+		}
 		err := body.Insert()
 		if err != nil {
 			errorMsg := fmt.Sprintf("insert pattern with err:%v", err.Error())
@@ -132,7 +122,7 @@ func (c *PatternApiController) DeletePattern() {
 		c.RenderError("cant parse id to int")
 		return
 	}
-	pattern := db.Patterns.Get(id)
+	pattern := cache.Patterns.Get(id)
 	if pattern == nil {
 		c.RenderError("no such pattern id")
 		return
@@ -157,7 +147,7 @@ func (c *PatternApiController) UpdatePattern() {
 		c.RenderError("cant parse id to int")
 		return
 	}
-	var body db.Pattern
+	var body cache.Pattern
 	err = json.Unmarshal(c.Ctx.Input.RequestBody, &body)
 	if err != nil {
 		c.RenderError(err.Error())

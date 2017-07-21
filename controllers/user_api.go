@@ -4,39 +4,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"sync"
-	"time"
+	"strings"
 
-	"github.com/ZeaLoVe/alarm-assist/db"
+	"github.com/ZeaLoVe/alarm-assist/cache"
 )
 
 type UsersApiResponse struct {
-	TotalElements int       `json:"totalElements"`
-	TotalPages    int       `json:"totalPages"`
-	Itenms        []db.User `json:"items"`
+	TotalElements int          `json:"totalElements"`
+	TotalPages    int          `json:"totalPages"`
+	Itenms        []cache.User `json:"items"`
 }
 
 type UserApiController struct {
 	ApiController
 }
 
-var user_lock sync.Mutex
-var userArray []db.User
-var userLastUpdate int64
+func GetUsersArray() []cache.User {
 
-func GetUsersArray() []db.User {
-	if time.Now().Unix() < userLastUpdate+REFLESHINTERVAL {
-		return userArray
-	} else {
-		var tmpArray []db.User
-		tmpCache := db.Users.M
-		for _, user := range tmpCache {
-			tmpArray = append(tmpArray, *user)
-		}
-		userLastUpdate = time.Now().Unix()
-		userArray = tmpArray
+	var tmpArray []cache.User
+	cache.Users.RLock()
+	tmpCache := cache.Users.M
+	defer cache.Users.RUnlock()
+	for _, user := range tmpCache {
+		tmpArray = append(tmpArray, *user)
 	}
-	return userArray
+	return tmpArray
+
 }
 
 func (c *UserApiController) GetUsers() {
@@ -79,6 +72,53 @@ func (c *UserApiController) GetUsers() {
 	c.RenderJson(resp)
 }
 
+func (c *UserApiController) SearchUser() {
+	im := c.GetString("im")
+	limit, err := c.GetInt("limit")
+	if err != nil && limit < 0 {
+		limit = 20
+	}
+	if im != "" {
+		users := cache.Users.QueryByIM(im)
+		if len(users) > limit {
+			c.RenderJson(users[0:limit])
+		} else {
+			c.RenderJson(users)
+		}
+		return
+	} else {
+		c.RenderError("nedd seacrch args")
+		return
+	}
+}
+
+func (c *UserApiController) CheckUsers() {
+	users := c.GetString("users")
+	if users == "" {
+		c.RenderError("cant get users")
+		return
+	} else {
+		users_list := strings.Split(users, ",")
+		ok_list, fail_list := cache.Users.CheckUsers(users_list)
+		if len(fail_list) == 0 {
+			c.RenderSuccess()
+			return
+		} else {
+			type CheckResponse struct {
+				Code    string   `json:"code"`
+				Fail    []string `json:"fail"`
+				Success []string `json:"success"`
+			}
+			resp := CheckResponse{
+				Code:    "fail",
+				Fail:    fail_list,
+				Success: ok_list,
+			}
+			c.RenderJson(resp)
+		}
+	}
+}
+
 func (c *UserApiController) GetUser() {
 	user_id := c.Ctx.Input.Param(":splat")
 	if user_id == "" {
@@ -90,8 +130,8 @@ func (c *UserApiController) GetUser() {
 		c.RenderError("cant parse id to int")
 		return
 	}
-	var resp db.User
-	user := db.Users.Get(id)
+	var resp cache.User
+	user := cache.Users.Get(id)
 
 	if user == nil {
 		c.RenderError("No such user")
@@ -105,7 +145,7 @@ func (c *UserApiController) GetUser() {
 }
 
 func (c *UserApiController) AddUser() {
-	var body db.User
+	var body cache.User
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &body)
 	if err != nil {
 		c.RenderError(err.Error())
@@ -140,7 +180,11 @@ func (c *UserApiController) DeleteUser() {
 		c.RenderError("cant parse id to int")
 		return
 	}
-	user := db.Users.Get(id)
+	user := cache.Users.Get(id)
+	if user == nil {
+		c.RenderError("no such user id")
+		return
+	}
 	err = user.Delete()
 	if err != nil {
 		errorMsg := fmt.Sprintf("delete user with err:%v", err.Error())
@@ -161,7 +205,7 @@ func (c *UserApiController) UpdateUser() {
 		c.RenderError("cant parse id to int")
 		return
 	}
-	var body db.User
+	var body cache.User
 	err = json.Unmarshal(c.Ctx.Input.RequestBody, &body)
 	if err != nil {
 		c.RenderError(err.Error())

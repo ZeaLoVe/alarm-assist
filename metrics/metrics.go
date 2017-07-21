@@ -29,6 +29,7 @@ var (
 	Alarm_api_phone      System = "alarm_api_phone"
 	Alarm_api_im         System = "alarm_api_im"
 	Alarm_api_mail       System = "alarm_api_mail"
+	Alarm_api_wechat     System = "alarm_api_wechat"
 	Alarm_api_pattern    System = "alarm_api_pattern"
 	Alarm_api_user       System = "alarm_api_user"
 	Alarm_api_subscrible System = "alarm_api_subscrible"
