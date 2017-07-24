@@ -58,7 +58,7 @@ func consumeEvent(event *model.Event, pattern *cache.Pattern, users []*cache.Use
 			sender.WritePhone(phones, phoneContent)
 		case "wechat":
 			beego.Debug("wechat send", wechats)
-			sender.WriteWechat(ims, imContent)
+			sender.WriteWechat(wechats, imContent)
 		default:
 			beego.Debug("<-----Not such channal defined: ", channal)
 			beego.Debug(smsContent, " is not sent.------>")

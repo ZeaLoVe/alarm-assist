@@ -38,7 +38,7 @@ type User struct {
 	Email  string `json:"email"`
 	Phone  string `json:"phone"`
 	IM     string `json:"im"`
-	QQ     string `json:"qq"`
+	QQ     string `json:"-"`
 	Wechat string `json:"wechat"`
 }
 

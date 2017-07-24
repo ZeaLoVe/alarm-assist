@@ -25,6 +25,30 @@ func GetSubscribleArray(creator string) []cache.Subscrible {
 	return tmpArray
 }
 
+func subscribleFilter(subs []cache.Subscrible, endpoint string, counter string) (ret []cache.Subscrible) {
+	if endpoint == "" && counter == "" {
+		return subs
+	} else {
+		for _, sub := range subs {
+			comp_endpoint, comp_counter := cache.GetEndpointCounter(sub.Expression.Expression)
+			if endpoint == "" && counter != "" {
+				if comp_counter == counter {
+					ret = append(ret, sub)
+				}
+			} else if endpoint != "" && counter == "" {
+				if comp_endpoint == endpoint {
+					ret = append(ret, sub)
+				}
+			} else if endpoint != "" && counter != "" {
+				if comp_endpoint == endpoint && comp_counter == counter {
+					ret = append(ret, sub)
+				}
+			}
+		}
+		return ret
+	}
+}
+
 type ExpressionRequest struct {
 	Counter    string `json:"counter"` // make by metric and tags
 	Endpoint   string `json:"endpoint"`
@@ -276,10 +300,11 @@ func (c *SubscribleApiController) GetSubscribles() {
 		return
 	}
 
-	//TODO query by enpoint counters
+	endpoint := c.GetString("endpoint")
+	counter := c.GetString("counter")
 
 	var resp SubscribleApiResponse
-	subs := GetSubscribleArray(creator)
+	subs := subscribleFilter(GetSubscribleArray(creator), endpoint, counter)
 	count := len(subs)
 
 	resp.TotalElements = count

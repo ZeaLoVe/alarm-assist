@@ -24,7 +24,7 @@ func GetUsersArray() []cache.User {
 	var tmpArray []cache.User
 	cache.Users.RLock()
 	tmpCache := cache.Users.M
-	defer cache.Users.RUnlock()
+	cache.Users.RUnlock()
 	for _, user := range tmpCache {
 		tmpArray = append(tmpArray, *user)
 	}
@@ -74,8 +74,8 @@ func (c *UserApiController) GetUsers() {
 
 func (c *UserApiController) SearchUser() {
 	im := c.GetString("im")
-	limit, err := c.GetInt("limit")
-	if err != nil && limit < 0 {
+	limit, _ := c.GetInt("limit")
+	if limit <= 0 {
 		limit = 20
 	}
 	if im != "" {

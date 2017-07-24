@@ -18,6 +18,17 @@ type AlarmApiController struct {
 	ApiController
 }
 
+func getuniqueRecivers(recievers []string) (ret []string) {
+	filter := make(map[string]bool)
+	for _, reciever := range recievers {
+		filter[reciever] = true
+	}
+	for reciever, _ := range filter {
+		ret = append(ret, reciever)
+	}
+	return ret
+}
+
 func (c *AlarmApiController) Alarms() {
 	var body AlarmRequestBody
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &body)
@@ -37,23 +48,23 @@ func (c *AlarmApiController) Alarms() {
 			c.RenderError("no recievers")
 			return
 		}
-		//TODO 判断recievers的内容是否符合要求，去重
+		recievers := getuniqueRecivers(body.Recievers)
 		switch body.Type {
 		case "im":
-			sender.WriteIMSms(body.Recievers, body.Content)
+			sender.WriteIMSms(recievers, body.Content)
 			metrics.ReportRequestCount(metrics.Alarm_api_im)
 		case "mail":
 			if body.Subject == "" {
 				c.RenderError("no subject when type is mail")
 				return
 			}
-			sender.WriteMail(body.Recievers, body.Subject, body.Content)
+			sender.WriteMail(recievers, body.Subject, body.Content)
 			metrics.ReportRequestCount(metrics.Alarm_api_mail)
 		case "phone":
-			sender.WritePhone(body.Recievers, body.Content)
+			sender.WritePhone(recievers, body.Content)
 			metrics.ReportRequestCount(metrics.Alarm_api_phone)
 		case "wechat":
-			sender.WriteWechat(body.Recievers, body.Content)
+			sender.WriteWechat(recievers, body.Content)
 			metrics.ReportRequestCount(metrics.Alarm_api_wechat)
 		default:
 			c.RenderError("alarm type no support")

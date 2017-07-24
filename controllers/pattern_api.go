@@ -20,7 +20,9 @@ type PatternApiController struct {
 
 func GetPatternsArray() []cache.Pattern {
 	var tmpArray []cache.Pattern
+	cache.Patterns.RLock()
 	tmpCache := cache.Patterns.M
+	cache.Patterns.RUnlock()
 	for _, pattern := range tmpCache {
 		tmpArray = append(tmpArray, *pattern)
 	}
