@@ -9,6 +9,7 @@ import (
 	"github.com/astaxie/beego"
 )
 
+//TODO 分页算法写成函数
 type SubscribleApiResponse struct {
 	TotalElements int                `json:"totalElements"`
 	TotalPages    int                `json:"totalPages"`

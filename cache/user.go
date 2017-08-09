@@ -57,22 +57,21 @@ func (this *UsersCache) GetByIm(im string) int {
 	return id
 }
 
-func (this *UsersCache) CheckUsers(im_list []string) (ok_list []string, fail_list []string) {
+func CheckUsers(im_list []string, users []User) (ret []User) {
+	cmp_map := make(map[string]bool)
 	for _, im := range im_list {
-		if _, exist := Users.M2[im]; exist {
-			ok_list = append(ok_list, im)
-		} else {
-			fail_list = append(fail_list, im)
+		cmp_map[im] = true
+	}
+	for _, user := range users {
+		if val, _ := cmp_map[user.IM]; val == true {
+			ret = append(ret, user)
 		}
 	}
-	return ok_list, fail_list
+	return ret
 }
 
-func (this *UsersCache) QueryByIM(content string) []*User {
-	this.RLock()
-	defer this.RUnlock()
-	var ret []*User
-	for _, user := range this.M {
+func QueryByIM(content string, users []User) (ret []User) {
+	for _, user := range users {
 		if strings.Contains(user.IM, content) {
 			ret = append(ret, user)
 		}

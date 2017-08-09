@@ -18,7 +18,7 @@ type AlarmApiController struct {
 	ApiController
 }
 
-func getuniqueRecivers(recievers []string) (ret []string) {
+func getUniqueRecivers(recievers []string) (ret []string) {
 	filter := make(map[string]bool)
 	for _, reciever := range recievers {
 		filter[reciever] = true
@@ -48,7 +48,7 @@ func (c *AlarmApiController) Alarms() {
 			c.RenderError("no recievers")
 			return
 		}
-		recievers := getuniqueRecivers(body.Recievers)
+		recievers := getUniqueRecivers(body.Recievers)
 		switch body.Type {
 		case "im":
 			sender.WriteIMSms(recievers, body.Content)

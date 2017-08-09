@@ -17,8 +17,6 @@ func configRoutes() {
 
 	//user api
 	beego.Router("/v1/api/uic/users", &controllers.UserApiController{}, "get:GetUsers")
-	beego.Router("/v1/api/uic/users/search", &controllers.UserApiController{}, "get:SearchUser")
-	beego.Router("/v1/api/uic/users/check", &controllers.UserApiController{}, "get:CheckUsers")
 	beego.Router("/v1/api/uic/users/*", &controllers.UserApiController{}, "get:GetUser")
 	beego.Router("/v1/api/uic/users/*", &controllers.UserApiController{}, "post:UpdateUser")
 	beego.Router("/v1/api/uic/users/*", &controllers.UserApiController{}, "delete:DeleteUser")

@@ -43,14 +43,29 @@ func (c *UserApiController) GetUsers() {
 		size = 20
 	}
 	var resp UsersApiResponse
-	users := GetUsersArray()
+	var users []cache.User
+	totalUsers := GetUsersArray()
+
+	args_users := c.GetString("users") //users=xxx,xxxx,xxxxx
+	if args_users == "" {              //未传递users参数则认为是普通查询
+		im := c.GetString("im")
+		if im == "" {
+			users = totalUsers
+		} else { //通过im关键字搜索
+			users = cache.QueryByIM(im, totalUsers)
+		}
+	} else {
+		users_list := strings.Split(args_users, ",")
+		users = cache.CheckUsers(users_list, totalUsers)
+	}
+
 	count := len(users)
+	resp.TotalElements = count
 
 	if count == 0 {
-		c.RenderSuccess()
+		c.RenderJson(resp)
 		return
 	}
-	resp.TotalElements = count
 
 	begin := (page - 1) * size
 	if begin >= count {
@@ -72,52 +87,52 @@ func (c *UserApiController) GetUsers() {
 	c.RenderJson(resp)
 }
 
-func (c *UserApiController) SearchUser() {
-	im := c.GetString("im")
-	limit, _ := c.GetInt("limit")
-	if limit <= 0 {
-		limit = 20
-	}
-	if im != "" {
-		users := cache.Users.QueryByIM(im)
-		if len(users) > limit {
-			c.RenderJson(users[0:limit])
-		} else {
-			c.RenderJson(users)
-		}
-		return
-	} else {
-		c.RenderError("nedd seacrch args")
-		return
-	}
-}
+//func (c *UserApiController) SearchUser() {
+//	im := c.GetString("im")
+//	limit, _ := c.GetInt("limit")
+//	if limit <= 0 {
+//		limit = 20
+//	}
+//	if im != "" {
+//		users := cache.Users.QueryByIM(im)
+//		if len(users) > limit {
+//			c.RenderJson(users[0:limit])
+//		} else {
+//			c.RenderJson(users)
+//		}
+//		return
+//	} else {
+//		c.RenderError("nedd seacrch args")
+//		return
+//	}
+//}
 
-func (c *UserApiController) CheckUsers() {
-	users := c.GetString("users")
-	if users == "" {
-		c.RenderError("cant get users")
-		return
-	} else {
-		users_list := strings.Split(users, ",")
-		ok_list, fail_list := cache.Users.CheckUsers(users_list)
-		if len(fail_list) == 0 {
-			c.RenderSuccess()
-			return
-		} else {
-			type CheckResponse struct {
-				Code    string   `json:"code"`
-				Fail    []string `json:"fail"`
-				Success []string `json:"success"`
-			}
-			resp := CheckResponse{
-				Code:    "fail",
-				Fail:    fail_list,
-				Success: ok_list,
-			}
-			c.RenderJson(resp)
-		}
-	}
-}
+//func (c *UserApiController) CheckUsers() {
+//	users := c.GetString("users")
+//	if users == "" {
+//		c.RenderError("cant get users")
+//		return
+//	} else {
+//		users_list := strings.Split(users, ",")
+//		ok_list, fail_list := cache.Users.CheckUsers(users_list)
+//		if len(fail_list) == 0 {
+//			c.RenderSuccess()
+//			return
+//		} else {
+//			type CheckResponse struct {
+//				Code    string   `json:"code"`
+//				Fail    []string `json:"fail"`
+//				Success []string `json:"success"`
+//			}
+//			resp := CheckResponse{
+//				Code:    "fail",
+//				Fail:    fail_list,
+//				Success: ok_list,
+//			}
+//			c.RenderJson(resp)
+//		}
+//	}
+//}
 
 func (c *UserApiController) GetUser() {
 	user_id := c.Ctx.Input.Param(":splat")
